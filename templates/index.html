@@ -1,0 +1,133 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Annual Report Knowledge Engine</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+<div class="container">
+
+    <header>
+        <h1>Annual Report Knowledge Engine</h1>
+        <p>Upload an annual report and ask questions about its contents.</p>
+    </header>
+
+    <!-- PDF Upload Section -->
+    <section class="card">
+
+        <h2>1. Upload Annual Report</h2>
+
+        <form method="POST" enctype="multipart/form-data">
+
+            <input
+                type="file"
+                name="pdf_file"
+                accept=".pdf,application/pdf"
+                required
+            >
+
+            <button type="submit">Upload and Process PDF</button>
+
+        </form>
+
+        {% if filename %}
+            <p class="success">
+                Successfully processed: {{ filename }}
+            </p>
+        {% endif %}
+
+    </section>
+
+
+    <!-- Question Section -->
+    {% if document_id %}
+
+    <section class="card">
+
+        <h2>2. Ask a Question</h2>
+
+        <form method="POST">
+
+            <input
+                type="hidden"
+                name="document_id"
+                value="{{ document_id }}"
+            >
+
+            <input
+                type="text"
+                name="question"
+                placeholder="Example: What was the total revenue?"
+                required
+            >
+
+            <button type="submit">Get Answer</button>
+
+        </form>
+
+    </section>
+
+    {% endif %}
+
+
+    <!-- Error Message -->
+    {% if error %}
+
+        <section class="error">
+            {{ error }}
+        </section>
+
+    {% endif %}
+
+
+    <!-- Answer Section -->
+    {% if answer %}
+
+    <section class="card answer-card">
+
+        <h2>3. Generated Answer</h2>
+
+        <p>{{ answer }}</p>
+
+    </section>
+
+    {% endif %}
+
+
+    <!-- Citation Section -->
+    {% if citations %}
+
+    <section class="card">
+
+        <h2>Source References</h2>
+
+        {% for citation in citations %}
+
+            <div class="citation">
+
+                <h3>Page {{ citation.page_number }}</h3>
+
+                <p>{{ citation.excerpt }}</p>
+
+            </div>
+
+        {% endfor %}
+
+    </section>
+
+    {% endif %}
+
+</div>
+
+</body>
+</html>
+
