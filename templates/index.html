@@ -6,7 +6,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Annual Report Knowledge Engine</title>
+    <title>AnnualIQ | Annual Report Intelligence</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap"
+          rel="stylesheet">
 
     <link rel="stylesheet"
           href="{{ url_for('static', filename='style.css') }}">
@@ -14,120 +20,377 @@
 
 <body>
 
-<div class="container">
+<div class="app-container">
 
-    <header>
-        <h1>Annual Report Knowledge Engine</h1>
-        <p>Upload an annual report and ask questions about its contents.</p>
+    <!-- HEADER -->
+    <header class="topbar">
+
+        <div class="brand">
+
+            <div class="brand-icon">A</div>
+
+            <div>
+                <h2>AnnualIQ</h2>
+                <span>Annual Report Intelligence</span>
+            </div>
+
+        </div>
+
+        <div class="header-status">
+            <span class="status-dot"></span>
+            AI Powered
+        </div>
+
     </header>
 
-    <!-- PDF Upload Section -->
-    <section class="card">
 
-        <h2>1. Upload Annual Report</h2>
+    <main class="main-content">
 
-        <form method="POST" enctype="multipart/form-data">
+        <!-- HERO SECTION -->
+        <section class="hero">
 
-            <input
-                type="file"
-                name="pdf_file"
-                accept=".pdf,application/pdf"
-                required
-            >
+            <div class="eyebrow">
+                ✦ AI-POWERED FINANCIAL ANALYSIS
+            </div>
 
-            <button type="submit">Upload and Process PDF</button>
+            <h1>
+                Understand annual reports.
+                <span>Get answers instantly.</span>
+            </h1>
 
-        </form>
-
-        {% if filename %}
-            <p class="success">
-                Successfully processed: {{ filename }}
+            <p>
+                Upload your company's annual report and ask questions.
+                Get clear financial insights backed by document references.
             </p>
-        {% endif %}
 
-    </section>
-
-
-    <!-- Question Section -->
-    {% if document_id %}
-
-    <section class="card">
-
-        <h2>2. Ask a Question</h2>
-
-        <form method="POST">
-
-            <input
-                type="hidden"
-                name="document_id"
-                value="{{ document_id }}"
-            >
-
-            <input
-                type="text"
-                name="question"
-                placeholder="Example: What was the total revenue?"
-                required
-            >
-
-            <button type="submit">Get Answer</button>
-
-        </form>
-
-    </section>
-
-    {% endif %}
+        </section>
 
 
-    <!-- Error Message -->
-    {% if error %}
+        <!-- ERROR MESSAGE -->
+        {% if error %}
 
-        <section class="error">
+        <section class="error-message">
+            <span>⚠</span>
             {{ error }}
         </section>
 
-    {% endif %}
+        {% endif %}
 
 
-    <!-- Answer Section -->
-    {% if answer %}
+        <!-- PDF UPLOAD SECTION -->
+        <section class="panel upload-panel">
 
-    <section class="card answer-card">
+            <div class="section-heading">
 
-        <h2>3. Generated Answer</h2>
+                <div class="heading-icon upload-icon">↑</div>
 
-        <p>{{ answer }}</p>
-
-    </section>
-
-    {% endif %}
-
-
-    <!-- Citation Section -->
-    {% if citations %}
-
-    <section class="card">
-
-        <h2>Source References</h2>
-
-        {% for citation in citations %}
-
-            <div class="citation">
-
-                <h3>Page {{ citation.page_number }}</h3>
-
-                <p>{{ citation.excerpt }}</p>
+                <div>
+                    <h2>Upload Annual Report</h2>
+                    <p>Start by uploading your company's PDF report.</p>
+                </div>
 
             </div>
 
-        {% endfor %}
 
-    </section>
+            <form method="POST"
+                  enctype="multipart/form-data"
+                  id="uploadForm">
 
-    {% endif %}
+                <label class="upload-area" for="pdf_file">
+
+                    <div class="upload-symbol">⇧</div>
+
+                    <h3>Choose your annual report</h3>
+
+                    <p>Click below to select a PDF document</p>
+
+                    <span class="file-type">
+                        PDF DOCUMENT · MAXIMUM 50 MB
+                    </span>
+
+                    <input
+                        type="file"
+                        id="pdf_file"
+                        name="pdf_file"
+                        accept=".pdf,application/pdf"
+                        required
+                    >
+
+                    <span class="browse-button">Browse PDF</span>
+
+                    <span id="selected-file" class="selected-file">
+                        No file selected
+                    </span>
+
+                </label>
+
+
+                <button type="submit"
+                        class="primary-button upload-button"
+                        id="uploadButton">
+
+                    Upload and Process Report
+                    <span>→</span>
+
+                </button>
+
+            </form>
+
+
+            {% if filename %}
+
+            <div class="success-message">
+
+                <span>✓</span>
+
+                <div>
+                    <strong>Report processed successfully</strong>
+                    <p>{{ filename }}</p>
+                </div>
+
+            </div>
+
+            {% endif %}
+
+        </section>
+
+
+        <!-- QUESTION SECTION -->
+        {% if document_id %}
+
+        <section class="panel question-panel">
+
+            <div class="section-heading">
+
+                <div class="heading-icon question-icon">✦</div>
+
+                <div>
+                    <h2>Ask Your Report</h2>
+                    <p>Ask questions about the uploaded annual report.</p>
+                </div>
+
+            </div>
+
+
+            <form method="POST" class="question-form">
+
+                <input
+                    type="hidden"
+                    name="document_id"
+                    value="{{ document_id }}"
+                >
+
+                <div class="question-input-wrapper">
+
+                    <span class="question-icon-small">✦</span>
+
+                    <input
+                        type="text"
+                        name="question"
+                        placeholder="Example: What was the total revenue?"
+                        required
+                    >
+
+                </div>
+
+                <button type="submit" class="primary-button">
+                    Ask AI
+                    <span>→</span>
+                </button>
+
+            </form>
+
+
+            <div class="suggestions">
+
+                <span>Try asking:</span>
+
+                <div class="suggestion-list">
+
+                    <span>What was the total revenue?</span>
+
+                    <span>What was the profit after tax?</span>
+
+                    <span>What was the total expenditure?</span>
+
+                </div>
+
+            </div>
+
+        </section>
+
+        {% endif %}
+
+
+        <!-- GENERATED ANSWER -->
+        {% if answer %}
+
+        <section class="panel answer-panel">
+
+            <div class="answer-heading">
+
+                <div class="answer-title">
+
+                    <div class="heading-icon answer-icon">✦</div>
+
+                    <div>
+                        <h2>AI Generated Answer</h2>
+                        <p>Based on your uploaded annual report.</p>
+                    </div>
+
+                </div>
+
+                <span class="verified-label">
+                    ● AI RESPONSE
+                </span>
+
+            </div>
+
+
+            <div class="answer-content">
+                <p>{{ answer }}</p>
+            </div>
+
+
+            <!-- SOURCE REFERENCES -->
+            {% if citations %}
+
+            <div class="source-section">
+
+                <div class="source-heading">
+                    <span>▤</span>
+                    <h3>Supporting Sources</h3>
+                </div>
+
+                {% for citation in citations %}
+
+                <div class="citation-card">
+
+                    <div class="page-badge">
+                        Page {{ citation.page_number }}
+                    </div>
+
+                    <p>{{ citation.excerpt }}</p>
+
+                </div>
+
+                {% endfor %}
+
+            </div>
+
+            {% endif %}
+
+        </section>
+
+        {% endif %}
+
+
+        <!-- FOOTER -->
+        <footer class="footer">
+
+            <div class="footer-brand">
+                <strong>AnnualIQ</strong>
+                <span>Intelligent financial document analysis</span>
+            </div>
+
+            <p>
+                Powered by Retrieval-Augmented Generation (RAG)
+            </p>
+
+        </footer>
+
+    </main>
 
 </div>
 
+
+<!-- PDF UPLOAD LOADING OVERLAY -->
+<div id="loadingOverlay" class="loading-overlay">
+
+    <div class="loading-card">
+
+        <div class="loading-icon">
+            <span>📄</span>
+        </div>
+
+        <h2>Uploading your PDF...</h2>
+
+        <p>
+            Please wait while we upload and process your annual report.
+        </p>
+
+        <div class="spinner"></div>
+
+        <div class="loading-status">
+            Processing document...
+        </div>
+
+        <small>
+            Please do not refresh or close this page.
+        </small>
+
+    </div>
+
+</div>
+
+
+<!-- JAVASCRIPT -->
+<script>
+
+    // Display selected PDF filename
+
+    const fileInput = document.getElementById("pdf_file");
+    const selectedFile = document.getElementById("selected-file");
+
+    if (fileInput && selectedFile) {
+
+        fileInput.addEventListener("change", function () {
+
+            if (this.files.length > 0) {
+
+                selectedFile.textContent = this.files[0].name;
+
+            } else {
+
+                selectedFile.textContent = "No file selected";
+
+            }
+
+        });
+
+    }
+
+
+    // Show loading animation during PDF upload
+
+    const uploadForm = document.getElementById("uploadForm");
+    const loadingOverlay = document.getElementById("loadingOverlay");
+    const uploadButton = document.getElementById("uploadButton");
+
+    if (uploadForm) {
+
+        uploadForm.addEventListener("submit", function (event) {
+
+            if (!uploadForm.checkValidity()) {
+                return;
+            }
+
+            if (!fileInput.files.length) {
+                return;
+            }
+
+            loadingOverlay.classList.add("active");
+
+            uploadButton.disabled = true;
+
+            uploadButton.innerHTML =
+                'Uploading... <span class="button-spinner"></span>';
+
+        });
+
+    }
+
+</script>
+
 </body>
 </html>
-

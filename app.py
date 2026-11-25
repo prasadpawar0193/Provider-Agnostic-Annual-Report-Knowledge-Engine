@@ -29,7 +29,6 @@ app.config["MAX_CONTENT_LENGTH"] = MAX_CONTENT_LENGTH
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Store document data for the current application session
 document_store = {}
 
 
@@ -38,6 +37,123 @@ def allowed_file(filename):
         "." in filename
         and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
     )
+
+
+def build_prompt(question, results):
+    """
+    Prepare document context and strict answer instructions.
+    """
+
+    context_parts = []
+
+    for index, result in enumerate(results, start=1):
+        page_number = result["metadata"]["page_number"]
+
+        context_parts.append(
+            f"""
+[CHUNK {index}]
+[PAGE NUMBER: {page_number}]
+DOCUMENT TEXT:
+{result["text"]}
+"""
+        )
+
+    context = "\n".join(context_parts)
+
+    prompt = f"""
+You are a financial annual report analysis assistant.
+
+Answer the user's question using ONLY the provided document evidence.
+
+STRICT RULES:
+
+1. Use only information available in the document context.
+2. Never invent, estimate, or assume financial figures.
+3. Copy financial values accurately from the document.
+4. Preserve the original currency, number, unit, and percentage.
+5. For Indian Rupees, use the actual symbol ₹, never the letter I.
+6. Preserve units such as crore, lakh, million and billion.
+7. Do not change the meaning or value of any financial figure.
+8. Keep the answer short, clear and factual.
+9. Do not combine unrelated financial figures.
+10. If the answer is not available in the context, respond exactly:
+{MISSING_ANSWER}
+11. Do not mention a source page in your answer.
+12. Do not include unrelated information.
+
+IMPORTANT:
+The page number is metadata associated with each chunk.
+Use the document text as evidence, not the page number alone.
+
+DOCUMENT CONTEXT:
+{context}
+
+QUESTION:
+{question}
+
+Return only the answer.
+"""
+
+    return prompt
+
+
+def get_supporting_citations(results, answer):
+    """
+    Return source pages only when their retrieved text contains
+    meaningful evidence for the generated answer.
+
+    This is a conservative text-based check, not a semantic
+    guarantee of citation correctness.
+    """
+
+    if not answer or answer.strip() == MISSING_ANSWER:
+        return []
+
+    answer_lower = answer.lower()
+
+    citations = []
+    seen_pages = set()
+
+    # Extract important words from the answer.
+    answer_words = {
+        word.strip(".,:;()[]{}")
+        for word in answer_lower.split()
+        if len(word.strip(".,:;()[]{}")) > 2
+    }
+
+    # Ignore common words that do not establish evidence.
+    stop_words = {
+        "the", "was", "were", "for", "from", "with",
+        "and", "that", "this", "has", "had", "have",
+        "crore", "crores", "lakh", "lakhs", "million",
+        "billion", "rupees", "rupee"
+    }
+
+    answer_words -= stop_words
+
+    for result in results:
+
+        page_number = result["metadata"]["page_number"]
+        source_text = result["text"]
+
+        source_lower = source_text.lower()
+
+        # Check whether the answer's meaningful terms occur
+        # in the source chunk.
+        matching_words = answer_words.intersection(
+            set(source_lower.split())
+        )
+
+        if matching_words and page_number not in seen_pages:
+
+            citations.append({
+                "page_number": page_number,
+                "excerpt": source_text[:400]
+            })
+
+            seen_pages.add(page_number)
+
+    return citations
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -51,7 +167,8 @@ def home():
 
     if request.method == "POST":
 
-        # Handle PDF upload
+        # ---------------- PDF UPLOAD ----------------
+
         if "pdf_file" in request.files:
 
             file = request.files["pdf_file"]
@@ -63,17 +180,22 @@ def home():
                 error = "Only PDF files are allowed."
 
             else:
+
                 safe_filename = secure_filename(file.filename)
-                unique_filename = f"{uuid.uuid4().hex}_{safe_filename}"
+
+                unique_filename = (
+                    f"{uuid.uuid4().hex}_{safe_filename}"
+                )
+
                 pdf_path = os.path.join(
                     app.config["UPLOAD_FOLDER"],
                     unique_filename
                 )
 
                 try:
+
                     file.save(pdf_path)
 
-                    # Extract PDF content
                     pages = extract_pdf_content(pdf_path)
 
                     if not pages or not any(
@@ -83,7 +205,6 @@ def home():
                             "No readable text found in this PDF."
                         )
 
-                    # Create document chunks
                     chunks = chunk_pages(
                         pages,
                         chunk_size=CHUNK_SIZE,
@@ -95,7 +216,6 @@ def home():
                             "Unable to create document chunks."
                         )
 
-                    # Index document chunks
                     retriever = DocumentRetriever()
                     retriever.index_chunks(chunks)
 
@@ -110,92 +230,78 @@ def home():
                     filename = safe_filename
 
                 except Exception as e:
+
                     error = f"PDF processing failed: {str(e)}"
 
                     if os.path.exists(pdf_path):
                         os.remove(pdf_path)
 
-        # Handle question answering
+        # ---------------- QUESTION ANSWERING ----------------
+
         elif "question" in request.form:
 
-            document_id = request.form.get("document_id", "")
-            question = request.form.get("question", "").strip()
+            document_id = request.form.get(
+                "document_id", ""
+            )
+
+            question = request.form.get(
+                "question", ""
+            ).strip()
 
             document = document_store.get(document_id)
 
             if not document:
+
                 error = "Please upload your annual report again."
 
             elif not question:
+
                 error = "Please enter a question."
 
             else:
+
                 filename = document["filename"]
 
                 try:
-                    # Retrieve relevant chunks
+
                     results = document["retriever"].search(
                         question,
                         top_k=TOP_K
                     )
 
-                    # Check whether relevant information exists
                     if (
                         not results
                         or results[0]["score"] < MIN_SIMILARITY_SCORE
                     ):
+
                         answer = MISSING_ANSWER
 
                     else:
-                        # Prepare document context
-                        context_parts = []
 
-                        for result in results:
-                            context_parts.append(
-                                f"Page {result['metadata']['page_number']}:\n"
-                                f"{result['text']}"
-                            )
+                        prompt = build_prompt(
+                            question,
+                            results
+                        )
 
-                        context = "\n\n".join(context_parts)
+                        answer = generate_answer(prompt).strip()
 
-                        prompt = f"""
-You are an annual report analysis assistant.
-
-Answer the question using ONLY the provided document context.
-
-Rules:
-1. Do not use outside knowledge.
-2. Do not invent financial figures.
-3. If the answer is not available in the context, respond exactly:
-   {MISSING_ANSWER}
-4. Include relevant source page numbers in your answer.
-5. Keep the answer clear and factual.
-
-DOCUMENT CONTEXT:
-{context}
-
-QUESTION:
-{question}
-
-ANSWER:
-"""
-
-                        answer = generate_answer(prompt)
-
-                        if not answer.strip():
+                        if not answer:
                             answer = MISSING_ANSWER
 
-                        # Attach source citations
-                        citations = [
-                            {
-                                "page_number": result["metadata"]["page_number"],
-                                "excerpt": result["text"][:400]
-                            }
-                            for result in results
-                        ]
+                        # Remove unnecessary answer labels.
+                        answer = answer.removeprefix("ANSWER:").strip()
+
+                        # Generate conservative source references.
+                        citations = get_supporting_citations(
+                            results,
+                            answer
+                        )
 
                 except Exception as e:
-                    error = f"Unable to generate answer: {str(e)}"
+
+                    error = (
+                        f"Unable to generate answer: {str(e)}"
+                    )
 
     return render_template(
         "index.html",
@@ -209,6 +315,7 @@ ANSWER:
 
 @app.errorhandler(413)
 def file_too_large(error):
+
     return render_template(
         "index.html",
         error="File is too large. Maximum upload size is 50 MB."
@@ -216,5 +323,5 @@ def file_too_large(error):
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
 
+    app.run(debug=True)
